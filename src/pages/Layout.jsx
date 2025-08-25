@@ -12,7 +12,12 @@ const Layout = () => {
   return user ? (
     <div className="flex flex-col items-start justify-start h-screen">
       <nav>
-        <img src={assets.logo} alt="logo" onClick={() => navigate("/")} />
+        <img
+          className="cursor-pointer w-32 sm:w-44"
+          src={assets.logo}
+          alt="logo"
+          onClick={() => navigate("/")}
+        />
         {sidebar ? (
           <X
             onClick={() => setSidebar(false)}
