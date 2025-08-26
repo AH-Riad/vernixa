@@ -31,7 +31,7 @@ const Sidebar = ({ sidebar, setSidebar }) => {
         sidebar ? "translate-x-0 " : "max-sm:translate-x-full"
       } transition-all duration-300 ease-in-out`}
     >
-      <div className=" my-7 w-full">
+      <div className="my-7 w-full">
         <img
           src={user.imageUrl}
           alt="User avatar"
@@ -62,7 +62,7 @@ const Sidebar = ({ sidebar, setSidebar }) => {
             </NavLink>
           ))}
         </div>
-        <div className="w-full border-t border-gray-200 p-4 px-7 mt-110 flex items-center justify-between">
+        <div className="w-full border-t border-gray-200 p-4 px-7 mt-60 flex items-center justify-between">
           <div
             onClick={openUserProfile}
             className="flex gap-2 items-center cursor-pointer"
