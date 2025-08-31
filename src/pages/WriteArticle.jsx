@@ -45,7 +45,7 @@ const WriteArticle = () => {
               onClick={() => setSelectedLength(item)}
               className={`text-xs px-4 py-1 border rounded-full cursor-pointer transition-colors ${
                 selectedLength?.text === item.text
-                  ? "bg-blue-50 text-blue-700 border-blue-300"
+                  ? "bg-blue-50 text-blue-700 border-blue-700"
                   : "text-gray-500 border-gray-300 hover:bg-gray-100"
               }`}
               key={index}
