@@ -1,4 +1,4 @@
-import { Hash, Sparkle } from "lucide-react";
+import { Hash, Sparkles } from "lucide-react";
 import React, { useState } from "react";
 
 const BlogTitles = () => {
@@ -26,7 +26,7 @@ const BlogTitles = () => {
         className="w-full max-w-lg p-4 bg-white rounded-lg border border-gray-200"
       >
         <div className="flex items-center gap-3">
-          <Sparkle className="w-6 text-[#8E37EB]" />
+          <Sparkles className="w-6 text-[#8E37EB]" />
           <h1 className="text-xl font-semibold">AI Title Generator</h1>
         </div>
 
@@ -61,7 +61,7 @@ const BlogTitles = () => {
         <br />
         <button className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-[#C341F6] to-[#8E37EB] text-white px-4 py-2 mt-6 text-sm rounded-lg cursor-pointer">
           <Hash className="w-5" />
-          Generate title
+          Generate Title
         </button>
       </form>
 
