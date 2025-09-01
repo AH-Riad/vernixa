@@ -39,7 +39,7 @@ const GenerateImages = () => {
           value={input}
           rows={4}
           className="w-full p-2 px-3 mt-2 outline-none text-sm rounded-md border border-gray-300"
-          placeholder="The future of artificial intelligence is..."
+          placeholder="Describe what you want to see in the image..."
           required
         />
 
