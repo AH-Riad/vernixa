@@ -1,4 +1,4 @@
-import { Eraser, Sparkle } from "lucide-react";
+import { Eraser, Sparkles } from "lucide-react";
 import React, { useState } from "react";
 
 const RemoveBackground = () => {
@@ -17,7 +17,7 @@ const RemoveBackground = () => {
         className="w-full max-w-lg p-4 bg-white rounded-lg border border-gray-200"
       >
         <div className="flex items-center gap-3">
-          <Sparkle className="w-6 text-[#FF4938]" />
+          <Sparkles className="w-6 text-[#FF4938]" />
           <h1 className="text-xl font-semibold">Background Remover</h1>
         </div>
 
@@ -39,7 +39,7 @@ const RemoveBackground = () => {
           className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-[#F6AB41] to-[#FF4938] text-white px-4 py-2 mt-6 text-sm rounded-lg cursor-pointer"
         >
           <Eraser className="w-5" />
-          Remove background
+          Remove Background
         </button>
       </form>
 
