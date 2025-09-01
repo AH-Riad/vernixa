@@ -1,4 +1,4 @@
-import { Image, Sparkle } from "lucide-react";
+import { Image, Sparkles } from "lucide-react";
 import React, { useState } from "react";
 
 const GenerateImages = () => {
@@ -28,7 +28,7 @@ const GenerateImages = () => {
         className="w-full max-w-lg p-4 bg-white rounded-lg border border-gray-200"
       >
         <div className="flex items-center gap-3">
-          <Sparkle className="w-6 text-[#00AD25]" />
+          <Sparkles className="w-6 text-[#00AD25]" />
           <h1 className="text-xl font-semibold">AI Image Generator</h1>
         </div>
 
