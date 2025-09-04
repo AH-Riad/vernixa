@@ -1,6 +1,9 @@
+// server/controllers/aiController.js
 import OpenAI from "openai";
 import { clerkClient } from "@clerk/express";
+import sql from "../configs/db.js"; // make sure this points to your Neon DB config
 
+// Instantiate OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.GEMINI_API_KEY,
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -8,42 +11,50 @@ const openai = new OpenAI({
 
 export const generateArticle = async (req, res) => {
   try {
-    const { userId } = req.auth();
-    const { prompt, length } = req.body;
+    // Make sure auth middleware sets these
+    const userId = req.userId;
     const plan = req.plan;
     const free_usage = req.free_usage;
 
+    const { prompt, length } = req.body;
+
+    // Limit check for free users
     if (plan !== "premium" && free_usage >= 15) {
       return res.json({
         success: false,
-        messag: "Limit reached. Upgrade to continue",
+        message: "Limit reached. Upgrade to continue",
       });
     }
+
+    // Call OpenAI Gemini
     const response = await openai.chat.completions.create({
       model: "gemini-2.0-flash",
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+      messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
       max_completion_tokens: length,
     });
-    console.log(response.choices[0].message);
 
-    await sql`INSERT INTO creations(user_Id, prompt, content, type) VALUES(${userId},${prompt},${content},"article")`;
+    const content = response.choices[0].message.content;
 
+    // Insert into Neon Postgres
+    await sql`
+      INSERT INTO creations(user_Id, prompt, content, type)
+      VALUES(${userId}, ${prompt}, ${content}, 'article')
+    `;
+
+    // Update free usage if not premium
     if (plan !== "premium") {
       await clerkClient.users.updateUserMetadata(userId, {
         privateMetadata: {
           free_usage: free_usage + 1,
         },
       });
-      res.json({ success: true, message: content });
     }
+
+    // Respond with generated article
+    res.json({ success: true, message: content });
   } catch (error) {
-    console.log(error.message);
+    console.error("generateArticle error:", error.message);
     res.json({ success: false, message: error.message });
   }
 };

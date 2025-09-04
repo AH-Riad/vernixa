@@ -1,25 +1,33 @@
-//middleware to check userId and premium plan
 import { clerkClient } from "@clerk/express";
-import { preinit } from "react-dom";
 
 export const auth = async (req, res, next) => {
   try {
+    // Get user info from Clerk
     const { userId, has } = await req.auth();
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
     const hasPremiumPlan = await has({ plan: "premium" });
     const user = await clerkClient.users.getUser(userId);
 
-    if (!hasPremiumPlan && user.privateMedata.free_usage) {
-      req.free_usage = user.privateMedata.free_usage;
+    // Set free usage for non-premium users
+    if (!hasPremiumPlan && user.privateMetadata?.free_usage) {
+      req.free_usage = user.privateMetadata.free_usage;
     } else {
       await clerkClient.users.updateUserMetadata(userId, {
-        privateMedata: {
-          free_usage: 0,
-        },
+        privateMetadata: { free_usage: 0 },
       });
       req.free_usage = 0;
     }
+
+    // **Set userId** for downstream controllers
+    req.userId = userId;
     req.plan = hasPremiumPlan ? "premium" : "free";
+
+    next();
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(401).json({ success: false, message: error.message });
   }
 };
