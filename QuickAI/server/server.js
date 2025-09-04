@@ -13,7 +13,7 @@ app.use(clerkMiddleware());
 app.get("/", (req, res) => res.send("SERVER IS LIVE!"));
 
 app.use(requireAuth());
-
+//hi this is a test commit to see if gits working fine
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
