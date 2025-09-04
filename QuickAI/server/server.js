@@ -13,7 +13,6 @@ app.use(clerkMiddleware());
 app.get("/", (req, res) => res.send("SERVER IS LIVE!"));
 
 app.use(requireAuth());
-//testing a commit
 
 const PORT = process.env.PORT || 3000;
 
