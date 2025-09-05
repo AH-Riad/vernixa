@@ -164,7 +164,8 @@ export const generateImage = async (req, res) => {
   }
 };
 
-//Image Generator
+// Background remover
+
 export const removeImageBackground = async (req, res) => {
   try {
     // Make sure auth middleware sets these
@@ -197,6 +198,45 @@ export const removeImageBackground = async (req, res) => {
 
     // Respond with generated article
     res.json({ success: true, content: secure_url });
+  } catch (error) {
+    console.error("generateArticle error:", error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Object remover
+
+export const removeImageObject = async (req, res) => {
+  try {
+    // Make sure auth middleware sets these
+    const userId = req.userId;
+    const plan = req.plan;
+    const { image } = req.file;
+    const { object } = req.body;
+
+    // Limit check for free users
+    if (plan !== "premium") {
+      return res.json({
+        success: false,
+        message: "This feature is only available for premium subscriptions",
+      });
+    }
+
+    const { public_id } = await cloudinary.uploader.upload(image.path);
+
+    const imageUrl = cloudinary.url(public_id, {
+      transformation: [{ effect: `gen_remove:${object}` }],
+      resource_type: "image",
+    });
+
+    // Insert into Neon Postgres
+    await sql`
+      INSERT INTO creations(user_Id, prompt, content, type)
+      VALUES(${userId}, ${`Removed ${object} from image`}, ${imageUrl}, 'image', )
+    `;
+
+    // Respond with generated article
+    res.json({ success: true, content: imageUrl });
   } catch (error) {
     console.error("generateArticle error:", error.message);
     res.json({ success: false, message: error.message });
