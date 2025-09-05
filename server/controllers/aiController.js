@@ -173,7 +173,7 @@ export const removeImageBackground = async (req, res) => {
     // Make sure auth middleware sets these
     const userId = req.userId;
     const plan = req.plan;
-    const { image } = req.file;
+    const image = req.file;
 
     // Limit check for free users
     if (plan !== "premium") {
@@ -195,7 +195,7 @@ export const removeImageBackground = async (req, res) => {
     // Insert into Neon Postgres
     await sql`
       INSERT INTO creations(user_Id, prompt, content, type, publish)
-      VALUES(${userId}, 'Remove background from image', ${secure_url}, 'image', )
+      VALUES(${userId}, 'Remove background from image', ${secure_url}, 'image' )
     `;
 
     // Respond with generated article
