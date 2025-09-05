@@ -2,7 +2,8 @@
 import OpenAI from "openai";
 import { clerkClient } from "@clerk/express";
 import sql from "../configs/db.js"; // make sure this points to your Neon DB config
-
+import axios from "axios";
+import { v2 as cloudinary } from "cloudinary";
 // Instantiate OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -104,6 +105,55 @@ export const generateBlogTitle = async (req, res) => {
 
     // Respond with generated article
     res.json({ success: true, message: content });
+  } catch (error) {
+    console.error("generateArticle error:", error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+//Image Generator
+export const generateImage = async (req, res) => {
+  try {
+    // Make sure auth middleware sets these
+    const userId = req.userId;
+    const plan = req.plan;
+    const { prompt, publish } = req.body;
+
+    // Limit check for free users
+    if (plan !== "premium") {
+      return res.json({
+        success: false,
+        message: "This feature is only available for premium subscriptions",
+      });
+    }
+
+    const formData = new FormData();
+    form.append("prompt", prompt);
+
+    const { data } = await axios.post(
+      "https://clipdrop-api.co/text-to-image/v1",
+      {
+        headers: {
+          "x-api-key": process.env.CLIPDROP_API_KEY,
+          responseType: "arraybuffer",
+        },
+      }
+    );
+
+    const base64Image = `data:image/png;base64,${Buffer.from(
+      data,
+      "binary"
+    ).toString("base64")}`;
+
+    const { secure_url } = await cloudinary.uploader.upload(base64Image);
+    // Insert into Neon Postgres
+    await sql`
+      INSERT INTO creations(user_Id, prompt, content, type, publish)
+      VALUES(${userId}, ${prompt}, ${secure_url}, 'image', ${publish ?? false})
+    `;
+
+    // Respond with generated article
+    res.json({ success: true, message: secure_url });
   } catch (error) {
     console.error("generateArticle error:", error.message);
     res.json({ success: false, message: error.message });
