@@ -108,7 +108,7 @@ export const generateBlogTitle = async (req, res) => {
     // Respond with generated article
     res.json({ success: true, message: content });
   } catch (error) {
-    console.error("generateArticle error:", error.message);
+    console.error("generateBlogTitle error:", error.message);
     res.json({ success: false, message: error.message });
   }
 };
@@ -159,7 +159,7 @@ export const generateImage = async (req, res) => {
     // Respond with generated article
     res.json({ success: true, content: secure_url });
   } catch (error) {
-    console.error("generateArticle error:", error.message);
+    console.error("generateImage error:", error.message);
     res.json({ success: false, message: error.message });
   }
 };
@@ -199,7 +199,7 @@ export const removeImageBackground = async (req, res) => {
     // Respond with generated article
     res.json({ success: true, content: secure_url });
   } catch (error) {
-    console.error("generateArticle error:", error.message);
+    console.error("removeImageBackground error:", error.message);
     res.json({ success: false, message: error.message });
   }
 };
@@ -238,7 +238,7 @@ export const removeImageObject = async (req, res) => {
     // Respond with generated article
     res.json({ success: true, content: imageUrl });
   } catch (error) {
-    console.error("generateArticle error:", error.message);
+    console.error("removeImageObject error:", error.message);
     res.json({ success: false, message: error.message });
   }
 };
