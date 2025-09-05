@@ -213,7 +213,7 @@ export const removeImageObject = async (req, res) => {
     // Make sure auth middleware sets these
     const userId = req.userId;
     const plan = req.plan;
-    const { image } = req.file;
+    const image = req.file;
     const { object } = req.body;
 
     // Limit check for free users
@@ -234,7 +234,7 @@ export const removeImageObject = async (req, res) => {
     // Insert into Neon Postgres
     await sql`
       INSERT INTO creations(user_Id, prompt, content, type)
-      VALUES(${userId}, ${`Removed ${object} from image`}, ${imageUrl}, 'image', )
+      VALUES(${userId}, ${`Removed ${object} from image`}, ${imageUrl}, 'image' )
     `;
 
     // Respond with generated article
