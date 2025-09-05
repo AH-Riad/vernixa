@@ -5,6 +5,8 @@ import sql from "../configs/db.js"; // make sure this points to your Neon DB con
 import axios from "axios";
 import { v2 as cloudinary } from "cloudinary";
 import FormData from "form-data";
+import fs from "fs";
+import pdf from "pdf-parse/lib/pdf-parse.js";
 
 // Instantiate OpenAI client
 const openai = new OpenAI({
@@ -239,6 +241,60 @@ export const removeImageObject = async (req, res) => {
     res.json({ success: true, content: imageUrl });
   } catch (error) {
     console.error("removeImageObject error:", error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+//Resume Reviewer
+
+export const resumeReview = async (req, res) => {
+  try {
+    // Make sure auth middleware sets these
+    const userId = req.userId;
+    const plan = req.plan;
+    const resume = req.file;
+    const { object } = req.body;
+
+    // Limit check for free users
+    if (plan !== "premium") {
+      return res.json({
+        success: false,
+        message: "This feature is only available for premium subscriptions",
+      });
+    }
+
+    if (resume.size > 5 * 1024 * 1024) {
+      return res.json({
+        success: false,
+        message: "Resume file size exceeds allowed size(5MB).",
+      });
+    }
+    const dataBuffer = fs.readFileSync(resume.path);
+
+    const pdfData = await pdf(dataBuffer);
+
+    const prompt = `Review the following resume and provide constructive feedback on its strengths, weaknesses, and areas for improvement. Resume content:\n\n ${pdfData.text}`;
+
+    // Call OpenAI Gemini
+    const response = await openai.chat.completions.create({
+      model: "gemini-2.0-flash",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_completion_tokens: 1000,
+    });
+
+    const content = response.choices[0].message.content;
+
+    // Insert into Neon Postgres
+    await sql`
+      INSERT INTO creations(user_Id, prompt, content, type)
+      VALUES(${userId}, ${`Review the uploaded resume`}, ${content}, 'resume-review' )
+    `;
+
+    // Respond with generated article
+    res.json({ success: true, content: content });
+  } catch (error) {
+    console.error("resumeReviews error:", error.message);
     res.json({ success: false, message: error.message });
   }
 };
