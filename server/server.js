@@ -6,13 +6,17 @@ import aiRouter from "./routes/aiRoutes.js";
 import connectCloudinary from "./configs/cloudinary.js";
 
 const app = express();
-await connectCloudinary;
+
+// Properly initialize Cloudinary
+connectCloudinary();
 
 app.use(cors());
 app.use(express.json());
 
+// Clerk middleware
 app.use(clerkMiddleware());
 
+// Test route
 app.get("/", (req, res) => res.send("SERVER IS LIVE!"));
 
 // Require authentication for all routes after this
@@ -20,12 +24,11 @@ app.use(requireAuth());
 app.use("/api/ai", aiRouter);
 
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log("App is listening on port", PORT);
 });
 
-// middleware to check userId and premium plan
+// Middleware to check userId and premium plan
 export const auth = async (req, res, next) => {
   try {
     const { userId, has } = await req.auth();
@@ -42,7 +45,9 @@ export const auth = async (req, res, next) => {
       });
       req.free_usage = 0;
     }
+    req.userId = userId;
     req.plan = hasPremiumPlan ? "premium" : "free";
+
     next();
   } catch (error) {
     res.json({ success: false, message: error.message });
