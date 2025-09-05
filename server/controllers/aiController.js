@@ -4,6 +4,8 @@ import { clerkClient } from "@clerk/express";
 import sql from "../configs/db.js"; // make sure this points to your Neon DB config
 import axios from "axios";
 import { v2 as cloudinary } from "cloudinary";
+import FormData from "form-data";
+
 // Instantiate OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -128,15 +130,16 @@ export const generateImage = async (req, res) => {
     }
 
     const formData = new FormData();
-    form.append("prompt", prompt);
+    formData.append("prompt", prompt);
 
     const { data } = await axios.post(
       "https://clipdrop-api.co/text-to-image/v1",
+      formData,
       {
         headers: {
           "x-api-key": process.env.CLIPDROP_API_KEY,
-          responseType: "arraybuffer",
         },
+        responseType: "arraybuffer",
       }
     );
 
