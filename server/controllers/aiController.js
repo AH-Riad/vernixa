@@ -108,7 +108,7 @@ export const generateBlogTitle = async (req, res) => {
     }
 
     // Respond with generated article
-    res.json({ success: true, message: content });
+    res.json({ success: true, content });
   } catch (error) {
     console.error("generateBlogTitle error:", error.message);
     res.json({ success: false, message: error.message });
