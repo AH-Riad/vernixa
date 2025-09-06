@@ -194,7 +194,7 @@ export const removeImageBackground = async (req, res) => {
 
     // Insert into Neon Postgres
     await sql`
-      INSERT INTO creations(user_Id, prompt, content, type, publish)
+      INSERT INTO creations(user_Id, prompt, content, type)
       VALUES(${userId}, 'Remove background from image', ${secure_url}, 'image' )
     `;
 
