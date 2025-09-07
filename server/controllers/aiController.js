@@ -270,7 +270,6 @@ export const resumeReview = async (req, res) => {
     const userId = req.userId;
     const plan = req.plan;
     const resume = req.file;
-    const { object } = req.body;
 
     // Limit check for free users
     if (plan !== "premium") {
