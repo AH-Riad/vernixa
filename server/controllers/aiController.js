@@ -210,13 +210,12 @@ export const removeImageBackground = async (req, res) => {
 
 export const removeImageObject = async (req, res) => {
   try {
-    // Make sure auth middleware sets these
     const userId = req.userId;
     const plan = req.plan;
     const image = req.file;
     const { object } = req.body;
 
-    // Limit check for free users
+    // Check subscription
     if (plan !== "premium") {
       return res.json({
         success: false,
@@ -224,24 +223,42 @@ export const removeImageObject = async (req, res) => {
       });
     }
 
-    const { public_id } = await cloudinary.uploader.upload(image.path);
+    if (!image) {
+      return res.json({
+        success: false,
+        message: "No image uploaded",
+      });
+    }
 
-    const imageUrl = cloudinary.url(public_id, {
-      transformation: [{ effect: `gen_remove:${object}` }],
+    if (!object) {
+      return res.json({
+        success: false,
+        message: "No object specified for removal",
+      });
+    }
+
+    // Upload to Cloudinary
+    const uploadResult = await cloudinary.uploader.upload(image.path, {
       resource_type: "image",
     });
 
-    // Insert into Neon Postgres
+    // Apply AI object removal transformation
+    const imageUrl = cloudinary.url(uploadResult.public_id, {
+      transformation: [{ effect: `gen_remove:${object}` }],
+      resource_type: "image",
+      secure: true, // ensures https URL
+    });
+
+    // Insert record into Neon Postgres
     await sql`
-      INSERT INTO creations(user_Id, prompt, content, type)
-      VALUES(${userId}, ${`Removed ${object} from image`}, ${imageUrl}, 'image' )
+      INSERT INTO creations(user_id, prompt, content, type)
+      VALUES(${userId}, ${`Removed ${object} from image`}, ${imageUrl}, 'image')
     `;
 
-    // Respond with generated article
-    res.json({ success: true, content: imageUrl });
+    return res.json({ success: true, content: imageUrl });
   } catch (error) {
     console.error("removeImageObject error:", error.message);
-    res.json({ success: false, message: error.message });
+    return res.json({ success: false, message: error.message });
   }
 };
 
