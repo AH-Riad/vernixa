@@ -4,6 +4,7 @@ import "dotenv/config";
 import { clerkMiddleware, requireAuth, clerkClient } from "@clerk/express";
 import aiRouter from "./routes/aiRoutes.js";
 import connectCloudinary from "./configs/cloudinary.js";
+import userRouter from "./routes/userRouter.js";
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.get("/", (req, res) => res.send("SERVER IS LIVE!"));
 // Require authentication for all routes after this
 app.use(requireAuth());
 app.use("/api/ai", aiRouter);
+app.use("/api/user", userRouter);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
