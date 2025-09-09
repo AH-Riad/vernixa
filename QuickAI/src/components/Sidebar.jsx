@@ -64,7 +64,7 @@ const Sidebar = ({ sidebar, setSidebar }) => {
             </NavLink>
           ))}
         </div>
-        <div className="w-full border-t border-gray-200 p-4 px-7 mt-60 flex items-center justify-between">
+        <div className="w-full border-t border-gray-200 p-4 px-7 mt-50 flex items-center justify-between">
           <div
             onClick={openUserProfile}
             className="flex gap-2 items-center cursor-pointer"
