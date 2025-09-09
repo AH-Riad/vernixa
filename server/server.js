@@ -25,12 +25,11 @@ app.use(requireAuth());
 app.use("/api/ai", aiRouter);
 app.use("/api/user", userRouter);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("App is listening on port", PORT);
-});
+// ✅ Do NOT call app.listen() on Vercel
+// Instead, export app
+export default app;
 
-// Middleware to check userId and premium plan
+// ✅ Keep your custom middleware
 export const auth = async (req, res, next) => {
   try {
     const { userId, has } = await req.auth();
