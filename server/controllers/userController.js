@@ -1,11 +1,11 @@
-import sql from "../configs/db";
+import sql from "../configs/db.js";
 
 export const getUserCretaions = async (req, res) => {
   try {
-    const { userId } = req.userId;
+    const userId = req.userId; // ✅ fix
 
     const creations =
-      await sql`SELECT * FROM creations WHERE user_id=${userId} ORDER  BY created_at DESC`;
+      await sql`SELECT * FROM creations WHERE user_id=${userId} ORDER BY created_at DESC`;
 
     res.json({ success: true, creations });
   } catch (error) {
@@ -16,7 +16,7 @@ export const getUserCretaions = async (req, res) => {
 export const getPublishedCreations = async (req, res) => {
   try {
     const creations =
-      await sql`SELECT * FROM creations WHERE publish = true ORDER  BY created_at DESC`;
+      await sql`SELECT * FROM creations WHERE publish = true ORDER BY created_at DESC`;
 
     res.json({ success: true, creations });
   } catch (error) {
@@ -26,7 +26,7 @@ export const getPublishedCreations = async (req, res) => {
 
 export const toggleLikeCreation = async (req, res) => {
   try {
-    const { userId } = req.userId;
+    const userId = req.userId; // ✅ fix
     const { id } = req.body;
 
     const [creation] = await sql`SELECT * FROM creations WHERE id=${id}`;
@@ -35,23 +35,24 @@ export const toggleLikeCreation = async (req, res) => {
       return res.json({ success: false, message: "Creation not found!" });
     }
 
-    const currentLikes = creation.likes;
+    const currentLikes = creation.likes || [];
     const userIdStr = userId.toString();
 
     let updatedLikes;
     let message;
 
     if (currentLikes.includes(userIdStr)) {
-      (updatedLikes = currentLikes.filter((user) => user != userIdStr)),
-        (message = "Creation Unliked");
+      updatedLikes = currentLikes.filter((user) => user !== userIdStr);
+      message = "Creation Unliked";
     } else {
-      (updatedLikes = [...updatedLikes, userIdStr]),
-        (message = "Creation Liked");
+      updatedLikes = [...currentLikes, userIdStr]; // ✅ fix
+      message = "Creation Liked";
     }
 
-    const formatedArray = `{${updatedLikes.json(",")}}`;
+    const formattedArray = `{${updatedLikes.join(",")}}`; // ✅ fix
 
-    await sql`UPDATE creations SET likes= ${formatedArray}::TEXT[] WHERE id = ${id}`;
+    await sql`UPDATE creations SET likes = ${formattedArray}::TEXT[] WHERE id = ${id}`;
+
     res.json({ success: true, message });
   } catch (error) {
     res.json({ success: false, message: error.message });
