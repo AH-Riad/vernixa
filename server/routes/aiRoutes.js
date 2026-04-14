@@ -20,14 +20,14 @@ aiRouter.post(
   "/remove-image-background",
   auth,
   upload.single("image"),
-  removeImageBackground
+  removeImageBackground,
 );
 
 aiRouter.post(
   "/remove-image-object",
   auth,
   upload.single("image"),
-  removeImageObject
+  removeImageObject,
 );
 
 aiRouter.post("/resume-review", auth, upload.single("resume"), resumeReview);

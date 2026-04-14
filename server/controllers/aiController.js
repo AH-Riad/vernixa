@@ -1,316 +1,238 @@
-// server/controllers/aiController.js
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 import { clerkClient } from "@clerk/express";
-import sql from "../configs/db.js"; // make sure this points to your Neon DB config
-import axios from "axios";
+import sql from "../configs/db.js";
 import { v2 as cloudinary } from "cloudinary";
 import FormData from "form-data";
 import fs from "fs";
 import pdf from "pdf-parse/lib/pdf-parse.js";
+import axios from "axios";
 
-// Instantiate OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+// =========================
+// GROQ SETUP
+// =========================
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
-export const generateArticle = async (req, res) => {
+// =========================
+// GROQ HELPER
+// =========================
+export const groqChat = async (prompt, maxTokens = 500) => {
   try {
-    // Make sure auth middleware sets these
-    const userId = req.userId;
-    const plan = req.plan;
-    const free_usage = req.free_usage;
-
-    const { prompt, length } = req.body;
-
-    // Limit check for free users
-    if (plan !== "premium" && free_usage >= 50) {
-      return res.json({
-        success: false,
-        message: "Limit reached. Upgrade to continue",
-      });
-    }
-
-    // Call OpenAI Gemini
-    const response = await openai.chat.completions.create({
-      model: "gemini-2.0-flash",
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_completion_tokens: length,
+      max_tokens: maxTokens,
     });
 
-    const content = response.choices[0].message.content;
+    return response.choices?.[0]?.message?.content || "";
+  } catch (err) {
+    console.error("Groq error:", err.message);
+    throw new Error("AI generation failed");
+  }
+};
 
-    // Insert into Neon Postgres
+// =========================
+// ARTICLE
+// =========================
+export const generateArticle = async (req, res) => {
+  try {
+    const { userId, plan, free_usage } = req;
+    const { prompt, length } = req.body;
+
+    if (plan !== "premium" && free_usage >= 50)
+      return res.json({ success: false, message: "Limit reached" });
+
+    const content = await groqChat(prompt, length || 500);
+
     await sql`
-      INSERT INTO creations(user_Id, prompt, content, type)
+      INSERT INTO creations(user_id, prompt, content, type)
       VALUES(${userId}, ${prompt}, ${content}, 'article')
     `;
 
-    // Update free usage if not premium
-    if (plan !== "premium") {
-      await clerkClient.users.updateUserMetadata(userId, {
-        privateMetadata: {
-          free_usage: free_usage + 1,
-        },
-      });
-    }
-
-    // Respond with generated article
     res.json({ success: true, content });
-  } catch (error) {
-    console.error("generateArticle error:", error.message);
-    res.json({ success: false, message: error.message });
+  } catch (err) {
+    res.json({ success: false, message: err.message });
   }
 };
 
-//BlogTitles Generator
+// =========================
+// BLOG TITLE
+// =========================
 export const generateBlogTitle = async (req, res) => {
   try {
-    // Make sure auth middleware sets these
-    const userId = req.userId;
-    const plan = req.plan;
-    const free_usage = req.free_usage;
-
+    const { userId, plan, free_usage } = req;
     const { prompt } = req.body;
 
-    // Limit check for free users
-    if (plan !== "premium" && free_usage >= 50) {
-      return res.json({
-        success: false,
-        message: "Limit reached. Upgrade to continue",
-      });
-    }
+    const content = await groqChat(prompt, 100);
 
-    // Call OpenAI Gemini
-    const response = await openai.chat.completions.create({
-      model: "gemini-2.0-flash",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_completion_tokens: 100,
-    });
-
-    const content = response.choices[0].message.content;
-
-    // Insert into Neon Postgres
     await sql`
-      INSERT INTO creations(user_Id, prompt, content, type)
+      INSERT INTO creations(user_id, prompt, content, type)
       VALUES(${userId}, ${prompt}, ${content}, 'blog-title')
     `;
 
-    // Update free usage if not premium
-    if (plan !== "premium") {
-      await clerkClient.users.updateUserMetadata(userId, {
-        privateMetadata: {
-          free_usage: free_usage + 1,
-        },
-      });
-    }
-
-    // Respond with generated article
     res.json({ success: true, content });
-  } catch (error) {
-    console.error("generateBlogTitle error:", error.message);
-    res.json({ success: false, message: error.message });
+  } catch (err) {
+    res.json({ success: false, message: err.message });
   }
 };
 
-//Image Generator
+// =========================
+// IMAGE GENERATION
+// =========================
+
 export const generateImage = async (req, res) => {
   try {
-    // Make sure auth middleware sets these
-    const userId = req.userId;
-    const plan = req.plan;
+    const { userId, plan } = req;
     const { prompt, publish } = req.body;
 
-    // Limit check for free users
     if (plan !== "premium") {
-      return res.json({
-        success: false,
-        message: "This feature is only available for premium subscriptions",
-      });
+      return res.json({ success: false, message: "Premium only" });
     }
 
-    const formData = new FormData();
-    formData.append("prompt", prompt);
+    const apiKey = process.env.STABILITY_API_KEY;
+    if (!apiKey) throw new Error("STABILITY_API_KEY missing");
 
-    const { data } = await axios.post(
-      "https://clipdrop-api.co/text-to-image/v1",
-      formData,
+    // STEP 1: call Stability API
+    const response = await axios.post(
+      "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
+      {
+        text_prompts: [{ text: prompt }],
+        cfg_scale: 7,
+        height: 1024,
+        width: 1024,
+        samples: 1,
+        steps: 30,
+      },
       {
         headers: {
-          "x-api-key": process.env.CLIPDROP_API_KEY,
-          ...formData.getHeaders(),
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        responseType: "arraybuffer",
-      }
+      },
     );
 
-    const base64Image = `data:image/png;base64,${Buffer.from(
-      data,
-      "binary"
-    ).toString("base64")}`;
+    // STEP 2: safety check
+    if (!response.data?.artifacts?.length) {
+      throw new Error("No image returned from Stability API");
+    }
 
-    const { secure_url } = await cloudinary.uploader.upload(base64Image);
-    // Insert into Neon Postgres
+    const base64 = response.data.artifacts[0].base64;
+
+    if (!base64) {
+      throw new Error("Invalid image response format");
+    }
+
+    // STEP 3: upload to cloudinary
+    const upload = await cloudinary.uploader.upload(
+      `data:image/png;base64,${base64}`,
+    );
+
+    // STEP 4: save DB
     await sql`
-      INSERT INTO creations(user_Id, prompt, content, type, publish)
-      VALUES(${userId}, ${prompt}, ${secure_url}, 'image', ${publish ?? false})
+      INSERT INTO creations(user_id, prompt, content, type, publish)
+      VALUES(${userId}, ${prompt}, ${upload.secure_url}, 'image', ${publish ?? false})
     `;
 
-    // Respond with generated article
-    res.json({ success: true, content: secure_url });
-  } catch (error) {
-    console.error("generateImage error:", error.message);
-    res.json({ success: false, message: error.message });
+    return res.json({
+      success: true,
+      content: upload.secure_url,
+    });
+  } catch (err) {
+    console.error("IMAGE ERROR:", err.response?.data || err.message);
+
+    return res.json({
+      success: false,
+      message:
+        err.response?.data?.message ||
+        err.response?.data?.errors?.[0] ||
+        err.message,
+    });
   }
 };
 
-// Background remover
-
+// =========================
+// BACKGROUND REMOVAL
+// =========================
 export const removeImageBackground = async (req, res) => {
   try {
-    // Make sure auth middleware sets these
-    const userId = req.userId;
-    const plan = req.plan;
+    const { userId, plan } = req;
     const image = req.file;
 
-    // Limit check for free users
-    if (plan !== "premium") {
-      return res.json({
-        success: false,
-        message: "This feature is only available for premium subscriptions",
-      });
-    }
+    if (plan !== "premium")
+      return res.json({ success: false, message: "Premium only" });
 
-    const { secure_url } = await cloudinary.uploader.upload(image.path, {
-      transformation: [
-        {
-          effect: "background_removal",
-          backgound_removal: "remove_the_background",
-        },
-      ],
+    const result = await cloudinary.uploader.upload(image.path, {
+      transformation: [{ effect: "background_removal" }],
     });
 
-    // Insert into Neon Postgres
-    await sql`
-      INSERT INTO creations(user_Id, prompt, content, type)
-      VALUES(${userId}, 'Remove background from image', ${secure_url}, 'image' )
-    `;
-
-    // Respond with generated article
-    res.json({ success: true, content: secure_url });
-  } catch (error) {
-    console.error("removeImageBackground error:", error.message);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-// Object remover
-
-export const removeImageObject = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const plan = req.plan;
-    const image = req.file;
-    const { object } = req.body;
-
-    // Check subscription
-    if (plan !== "premium") {
-      return res.json({
-        success: false,
-        message: "This feature is only available for premium subscriptions",
-      });
-    }
-
-    if (!image) {
-      return res.json({
-        success: false,
-        message: "No image uploaded",
-      });
-    }
-
-    if (!object) {
-      return res.json({
-        success: false,
-        message: "No object specified for removal",
-      });
-    }
-
-    // Upload to Cloudinary
-    const uploadResult = await cloudinary.uploader.upload(image.path, {
-      resource_type: "image",
-    });
-
-    // Apply AI object removal transformation
-    const imageUrl = cloudinary.url(uploadResult.public_id, {
-      transformation: [{ effect: `gen_remove:${object}` }],
-      resource_type: "image",
-      secure: true, // ensures https URL
-    });
-
-    // Insert record into Neon Postgres
     await sql`
       INSERT INTO creations(user_id, prompt, content, type)
-      VALUES(${userId}, ${`Removed ${object} from image`}, ${imageUrl}, 'image')
+      VALUES(${userId}, 'Remove background', ${result.secure_url}, 'image')
     `;
 
-    return res.json({ success: true, content: imageUrl });
-  } catch (error) {
-    console.error("removeImageObject error:", error.message);
-    return res.json({ success: false, message: error.message });
+    res.json({ success: true, content: result.secure_url });
+  } catch (err) {
+    res.json({ success: false, message: err.message });
   }
 };
 
-//Resume Reviewer
-
-export const resumeReview = async (req, res) => {
+// =========================
+// OBJECT REMOVAL
+// =========================
+export const removeImageObject = async (req, res) => {
   try {
-    // Make sure auth middleware sets these
-    const userId = req.userId;
-    const plan = req.plan;
-    const resume = req.file;
+    const { userId, plan } = req;
+    const { object } = req.body;
+    const image = req.file;
 
-    // Limit check for free users
-    if (plan !== "premium") {
-      return res.json({
-        success: false,
-        message: "This feature is only available for premium subscriptions",
-      });
-    }
+    if (plan !== "premium")
+      return res.json({ success: false, message: "Premium only" });
 
-    if (resume.size > 5 * 1024 * 1024) {
-      return res.json({
-        success: false,
-        message: "Resume file size exceeds allowed size(5MB).",
-      });
-    }
-    const dataBuffer = fs.readFileSync(resume.path);
+    const upload = await cloudinary.uploader.upload(image.path);
 
-    const pdfData = await pdf(dataBuffer);
-
-    const prompt = `Review the following resume and provide constructive feedback on its strengths, weaknesses, and areas for improvement. Resume content:\n\n ${pdfData.text}`;
-
-    // Call OpenAI Gemini
-    const response = await openai.chat.completions.create({
-      model: "gemini-2.0-flash",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_completion_tokens: 1000,
+    const url = cloudinary.url(upload.public_id, {
+      transformation: [{ effect: `gen_remove:${object}` }],
     });
 
-    const content = response.choices[0].message.content;
-
-    // Insert into Neon Postgres
     await sql`
-      INSERT INTO creations(user_Id, prompt, content, type)
-      VALUES(${userId}, ${`Review the uploaded resume`}, ${content}, 'resume-review' )
+      INSERT INTO creations(user_id, prompt, content, type)
+      VALUES(${userId}, ${`Remove ${object}`}, ${url}, 'image')
     `;
 
-    // Respond with generated article
-    res.json({ success: true, content: content });
-  } catch (error) {
-    console.error("resumeReviews error:", error.message);
-    res.json({ success: false, message: error.message });
+    res.json({ success: true, content: url });
+  } catch (err) {
+    res.json({ success: false, message: err.message });
+  }
+};
+
+// =========================
+// RESUME REVIEW
+// =========================
+export const resumeReview = async (req, res) => {
+  try {
+    const { userId, plan } = req;
+    const resume = req.file;
+
+    if (plan !== "premium")
+      return res.json({ success: false, message: "Premium only" });
+
+    const data = fs.readFileSync(resume.path);
+    const pdfData = await pdf(data);
+
+    const prompt = `Review resume:\n\n${pdfData.text}`;
+
+    const content = await groqChat(prompt, 1000);
+
+    await sql`
+      INSERT INTO creations(user_id, prompt, content, type)
+      VALUES(${userId}, 'Resume review', ${content}, 'resume-review')
+    `;
+
+    res.json({ success: true, content });
+  } catch (err) {
+    res.json({ success: false, message: err.message });
   }
 };
