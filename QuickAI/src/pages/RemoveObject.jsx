@@ -34,7 +34,7 @@ const RemoveObject = () => {
             Authorization: `Bearer ${await getToken()}`,
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
 
       if (data.success) {
